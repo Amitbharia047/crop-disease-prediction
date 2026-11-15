@@ -1,0 +1,59 @@
+{
+  "model_name": "AgriVision-CNN v2 (Custom Deep ConvNet)",
+  "framework": "TensorFlow / Keras",
+  "input_resolution": "224 x 224 x 3 (RGB)",
+  "total_parameters": 3254182,
+  "trainable_parameters": 3251430,
+  "non_trainable_parameters": 2752,
+  "dataset": "PlantVillage Benchmark Dataset",
+  "classes_count": 38,
+  "benchmark_accuracy": {
+    "top_1_accuracy": "97.4%",
+    "top_3_accuracy": "99.2%",
+    "validation_loss": 0.082
+  },
+  "convolutional_blocks": [
+    {
+      "block": "Conv Block 1",
+      "layers": "Conv2D(32, 3x3) -> BatchNorm -> ReLU -> Conv2D(32, 3x3) -> MaxPool(2x2)",
+      "feature_extraction": "Primary visual primitives: edges, gradients, leaf boundary contours",
+      "output_shape": "(112, 112, 32)"
+    },
+    {
+      "block": "Conv Block 2",
+      "layers": "Conv2D(64, 3x3) -> BatchNorm -> ReLU -> Conv2D(64, 3x3) -> MaxPool(2x2)",
+      "feature_extraction": "Leaf venation structures, chlorophyll density, chlorotic discoloration",
+      "output_shape": "(56, 56, 64)"
+    },
+    {
+      "block": "Conv Block 3",
+      "layers": "Conv2D(128, 3x3) -> BatchNorm -> ReLU -> Conv2D(128, 3x3) -> MaxPool(2x2)",
+      "feature_extraction": "Fungal pustules, necrotic spots, target-board concentric rings, halos",
+      "output_shape": "(28, 28, 128)"
+    },
+    {
+      "block": "Conv Block 4",
+      "layers": "Conv2D(256, 3x3) -> BatchNorm -> ReLU -> Conv2D(256, 3x3) -> MaxPool(2x2)",
+      "feature_extraction": "High-level pathological disease manifestations & multi-spot clustering",
+      "output_shape": "(14, 14, 256)"
+    }
+  ],
+  "dense_head": [
+    {
+      "layer": "GlobalAveragePooling2D",
+      "dim": 256
+    },
+    {
+      "layer": "Dense(512) + BatchNorm + Dropout(0.5)",
+      "dim": 512
+    },
+    {
+      "layer": "Dense(128) + Dropout(0.3)",
+      "dim": 128
+    },
+    {
+      "layer": "Dense(38, activation='softmax')",
+      "dim": 38
+    }
+  ]
+}

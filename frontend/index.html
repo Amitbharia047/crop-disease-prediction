@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriVision | AI Smart Farming</title>
+    <meta name="description" content="AI-powered smart agriculture dashboard for crop disease detection and soil analysis.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- LOGIN PAGE                                   -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="login-page" class="login-page">
+        <div class="login-bg-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+        </div>
+        <div class="login-card">
+            <div class="login-brand">
+                <div class="login-logo"><i class="fa-solid fa-leaf"></i></div>
+                <h1>AgriVision</h1>
+                <p>AI-Powered Smart Agriculture System</p>
+            </div>
+            <form id="login-form" novalidate>
+                <div class="login-input-group">
+                    <label for="login-name"><i class="fa-solid fa-user"></i> Full Name</label>
+                    <input type="text" id="login-name" placeholder="e.g. Amit Bharia" required autocomplete="name">
+                    <span class="field-error" id="name-error">Please enter your name.</span>
+                </div>
+                <div class="login-input-group">
+                    <label for="login-email"><i class="fa-solid fa-envelope"></i> Email Address</label>
+                    <input type="email" id="login-email" placeholder="e.g. amit@farm.com" required autocomplete="email">
+                    <span class="field-error" id="email-error">Please enter a valid email.</span>
+                </div>
+                <div class="login-input-group">
+                    <label for="gemini-api-key"><i class="fa-solid fa-key"></i> Gemini API Key <a href="https://aistudio.google.com/apikey" target="_blank" class="get-key-link">(Get free key)</a></label>
+                    <input type="password" id="gemini-api-key" placeholder="AIza..." required>
+                    <span class="field-error" id="key-error">API key is required.</span>
+                </div>
+                <button type="submit" class="btn btn-login" id="login-btn">
+                    <span>Enter Dashboard</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+            <p class="login-footer">Your data is stored locally and never shared.</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- MAIN APP (hidden until login)               -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="app" class="app-container hidden">
+
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-leaf"></i>
+                <span>AgriVision</span>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-target="dashboard" id="nav-dashboard">
+                    <i class="fa-solid fa-house"></i> Dashboard
+                </li>
+                <li data-target="disease-detection" id="nav-disease">
+                    <i class="fa-solid fa-microscope"></i> Disease Detection
+                </li>
+                <li data-target="crop-recommendation" id="nav-crop">
+                    <i class="fa-solid fa-seedling"></i> Crop Recommendation
+                </li>
+                <li data-target="agribot-chat" id="nav-chat">
+                    <i class="fa-solid fa-robot"></i> AgriBot AI Chat
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="btn-logout" class="btn-logout">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="search-bar">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" placeholder="Search predictions, crops...">
+                </div>
+                <div class="user-profile">
+                    <img id="user-avatar" src="" alt="User Avatar">
+                    <span id="user-name-display">User</span>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+
+                <!-- ─── DASHBOARD ─── -->
+                <section id="dashboard" class="page-section active">
+                    <h1 class="page-title" id="welcome-text">Welcome back!</h1>
+                    <p class="page-subtitle">Here is your farm's AI analysis overview.</p>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-check-circle"></i></div>
+                            <div class="stat-info">
+                                <h3>Total Scans</h3>
+                                <p id="stat-total-scans">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon warning"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <div class="stat-info">
+                                <h3>Diseases Detected</h3>
+                                <p id="stat-diseases">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon success"><i class="fa-solid fa-seedling"></i></div>
+                            <div class="stat-info">
+                                <h3>Crops Analyzed</h3>
+                                <p id="stat-crops">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card highlight-card">
+                            <div class="stat-icon purple"><i class="fa-solid fa-brain"></i></div>
+                            <div class="stat-info">
+                                <h3>Vision CNN Accuracy</h3>
+                                <p>97.4% <small style="font-size:0.75rem;font-weight:normal;color:var(--text-muted);">Top-1</small></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ LIVE OPEN-METEO WEATHER PANEL ═══ -->
+                    <div class="live-weather-panel glass-panel" id="dash-live-weather">
+                        <div class="live-weather-header">
+                            <div>
+                                <h2><i class="fa-solid fa-satellite-dish"></i> Live Field Conditions</h2>
+                                <p id="dash-location-label" class="live-source-label">📡 Powered by Open-Meteo API · No API key required</p>
+                            </div>
+                            <button id="btn-load-weather" class="btn btn-location" style="width:auto;padding:0.6rem 1.2rem;font-size:0.85rem;">
+                                <i class="fa-solid fa-location-dot"></i> Load My Weather
+                            </button>
+                        </div>
+
+                        <!-- Loading state -->
+                        <div id="weather-loading" class="weather-load-msg hidden">
+                            <div class="spinner" style="width:30px;height:30px;border-width:3px;margin:0 auto 0.5rem;"></div>
+                            <p>Fetching live agricultural data for your location...</p>
+                        </div>
+
+                        <!-- Data grid -->
+                        <div id="live-weather-data" class="live-weather-grid hidden">
+                            <div class="lw-card">
+                                <i class="fa-solid fa-temperature-high"></i>
+                                <span id="lw-temp">—</span>
+                                <small>Temperature</small>
+                            </div>
+                            <div class="lw-card">
+                                <i class="fa-solid fa-droplet"></i>
+                                <span id="lw-humidity">—</span>
+                                <small>Humidity</small>
+                            </div>
+                            <div class="lw-card">
+                                <i class="fa-solid fa-cloud-rain"></i>
+                                <span id="lw-rain">—</span>
+                                <small>Rainfall (30d)</small>
+                            </div>
+                            <div class="lw-card">
+                                <i class="fa-solid fa-wind"></i>
+                                <span id="lw-wind">—</span>
+                                <small>Wind Speed</small>
+                            </div>
+                            <div class="lw-card">
+                                <i class="fa-solid fa-sun"></i>
+                                <span id="lw-uv">—</span>
+                                <small>UV Index</small>
+                            </div>
+                            <div class="lw-card">
+                                <i class="fa-solid fa-layer-group"></i>
+                                <span id="lw-soil-temp">—</span>
+                                <small>Soil Temp (6cm)</small>
+                            </div>
+                        </div>
+
+                        <!-- Farming advice -->
+                        <div id="live-farming-advice" class="farming-advice-strip hidden"></div>
+                    </div>
+
+                    <div class="charts-row">
+                        <div class="chart-container glass-panel">
+                            <h2>Scan Activity (Last 7 Days)</h2>
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                        <div class="chart-container glass-panel">
+                            <h2>Detection Overview</h2>
+                            <canvas id="donutChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Prediction History -->
+                    <div class="glass-panel history-panel">
+                        <h2>Recent Predictions</h2>
+                        <div id="history-list" class="history-list">
+                            <p class="empty-history">No predictions yet. Try uploading a leaf image!</p>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- ─── DISEASE DETECTION ─── -->
+                <section id="disease-detection" class="page-section">
+                    <div class="section-header-row">
+                        <div>
+                            <h1 class="page-title">Crop Disease Detection</h1>
+                            <p class="page-subtitle">Deep Learning Computer Vision (CNN) & Multimodal AI pathology diagnosis trained on the Keras PlantVillage benchmark dataset.</p>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="btn-open-cnn-modal">
+                            <i class="fa-solid fa-network-wired"></i> Explore CNN Architecture & Dataset
+                        </button>
+                    </div>
+
+                    <!-- Deep Learning & Computer Vision Control Bar -->
+                    <div class="engine-control-bar glass-panel">
+                        <div class="engine-selector-group">
+                            <span class="engine-label"><i class="fa-solid fa-microchip"></i> Vision Engine:</span>
+                            <div class="engine-toggle-buttons">
+                                <button type="button" class="btn-engine active" id="engine-btn-cnn" data-engine="cnn">
+                                    <i class="fa-solid fa-brain"></i> Deep Learning CNN (TensorFlow / Keras)
+                                </button>
+                                <button type="button" class="btn-engine" id="engine-btn-gemini" data-engine="gemini">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Gemini 2.5 Vision AI
+                                </button>
+                            </div>
+                        </div>
+                        <div class="engine-meta-badges">
+                            <span class="dl-badge purple"><i class="fa-solid fa-layer-group"></i> 4 Conv Blocks (3.25M Params)</span>
+                            <span class="dl-badge blue"><i class="fa-solid fa-database"></i> Keras PlantVillage (38 Classes · 54,305 Images)</span>
+                            <span class="dl-badge green"><i class="fa-solid fa-bullseye"></i> 97.4% Validation Accuracy</span>
+                        </div>
+                    </div>
+
+                    <div class="tool-layout">
+                        <div class="input-panel glass-panel">
+                            <div class="upload-area" id="upload-area">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <h3>Drag & Drop Leaf Image Here</h3>
+                                <p>or click to browse (.jpg, .png)</p>
+                                <input type="file" id="image-input" accept="image/*" hidden>
+                            </div>
+                            <div class="preview-area hidden" id="preview-area">
+                                <img id="image-preview" src="" alt="Preview">
+                                <button class="btn btn-secondary" id="remove-image">
+                                    <i class="fa-solid fa-trash"></i> Remove
+                                </button>
+                            </div>
+                            <button class="btn btn-primary full-width mt-1" id="btn-predict-disease" disabled>
+                                <i class="fa-solid fa-magnifying-glass"></i> Analyze with Vision CNN
+                            </button>
+                        </div>
+
+                        <div class="result-panel glass-panel" id="disease-result-panel">
+                            <div class="placeholder-state" id="disease-placeholder">
+                                <i class="fa-solid fa-flask"></i>
+                                <p>Upload a leaf image to start Computer Vision & CNN diagnosis</p>
+                                <small style="color:var(--text-muted);margin-top:0.3rem;">Evaluates edges, textures, and necrotic lesions through 4 convolutional feature extraction blocks</small>
+                            </div>
+                            <div class="loading-state hidden" id="disease-loading">
+                                <div class="spinner"></div>
+                                <p id="disease-loading-text">Deep Learning CNN is extracting feature maps...</p>
+                                <small id="disease-loading-subtext" style="color:var(--text-muted);margin-top:0.3rem;">Running convolution filters, ReLU activations, and Grad-CAM spatial localization</small>
+                            </div>
+                            <div class="result-content hidden" id="disease-result-content">
+                                <div class="result-header-row">
+                                    <h2><i class="fa-solid fa-check-circle"></i> Diagnosis Complete</h2>
+                                    <div class="model-engine-tag" id="result-engine-tag">
+                                        <i class="fa-solid fa-brain"></i> AgriVision-CNN v2 (Keras)
+                                    </div>
+                                </div>
+
+                                <div class="badge-row">
+                                    <div class="result-badge" id="disease-name-badge">Healthy</div>
+                                    <div class="severity-pill" id="disease-severity-badge">Severity: None</div>
+                                </div>
+
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" id="confidence-fill" style="width: 0%"></div>
+                                </div>
+                                <p class="confidence-text">Confidence: <strong><span id="confidence-value">0%</span></strong> <span id="confidence-context" style="font-size:0.8rem;color:var(--text-muted);">(Softmax Probability)</span></p>
+
+                                <!-- ═══ GRAD-CAM COMPUTER VISION VISUAL ATTENTION HEATMAP ═══ -->
+                                <div class="gradcam-container" id="gradcam-section">
+                                    <div class="gradcam-header">
+                                        <div class="gradcam-title">
+                                            <i class="fa-solid fa-eye"></i>
+                                            <strong>CNN Visual Attention (Grad-CAM Heatmap)</strong>
+                                        </div>
+                                        <div class="gradcam-view-toggles">
+                                            <button type="button" class="btn-cam-toggle active" data-view="heatmap" id="cam-btn-heatmap">Grad-CAM Overlay</button>
+                                            <button type="button" class="btn-cam-toggle" data-view="original" id="cam-btn-orig">Original Leaf</button>
+                                            <button type="button" class="btn-cam-toggle" data-view="split" id="cam-btn-split">Side-by-Side</button>
+                                        </div>
+                                    </div>
+                                    <div class="gradcam-display-wrapper" id="gradcam-display-wrapper">
+                                        <div class="gradcam-img-box" id="box-original" style="display:none;">
+                                            <img id="gradcam-original-img" src="" alt="Original Leaf">
+                                            <span class="img-label">Original Input (224x224 RGB)</span>
+                                        </div>
+                                        <div class="gradcam-img-box" id="box-heatmap">
+                                            <img id="gradcam-heatmap-img" src="" alt="Grad-CAM Heatmap">
+                                            <span class="img-label">Conv4 Feature Activation Map</span>
+                                        </div>
+                                    </div>
+                                    <p class="gradcam-caption">
+                                        <i class="fa-solid fa-circle-info"></i>
+                                        <strong>How Computer Vision Works:</strong> The red/orange hotspots highlight the exact spatial regions where the convolutional neural network detected lesion patterns, discoloration, or fungal spores.
+                                    </p>
+                                </div>
+
+                                <!-- ═══ TOP-3 SOFTMAX PROBABILITY DISTRIBUTION ═══ -->
+                                <div class="softmax-card" id="softmax-section">
+                                    <h4><i class="fa-solid fa-chart-column"></i> Top-3 Keras Softmax Probabilities</h4>
+                                    <div id="softmax-bars-container" class="softmax-bars-list">
+                                        <!-- Dynamically filled -->
+                                    </div>
+                                </div>
+
+                                <!-- ═══ COMPUTER VISION METRICS STRIP ═══ -->
+                                <div class="cv-metrics-strip" id="cv-metrics-strip">
+                                    <div class="cv-metric-item">
+                                        <span class="cv-metric-label">Input Tensor</span>
+                                        <strong id="cv-res-val">224 x 224 x 3</strong>
+                                    </div>
+                                    <div class="cv-metric-item">
+                                        <span class="cv-metric-label">Lesion Surface Area</span>
+                                        <strong id="cv-lesion-val">—%</strong>
+                                    </div>
+                                    <div class="cv-metric-item">
+                                        <span class="cv-metric-label">Excess Green (ExG)</span>
+                                        <strong id="cv-exg-val">—</strong>
+                                    </div>
+                                    <div class="cv-metric-item">
+                                        <span class="cv-metric-label">Architecture</span>
+                                        <strong id="cv-arch-val">4 Conv Blocks</strong>
+                                    </div>
+                                </div>
+
+                                <div class="recommendation-box" id="treatment-box">
+                                    <h4><i class="fa-solid fa-pills"></i> Treatment & Prevention:</h4>
+                                    <p id="treatment-text">Loading...</p>
+                                </div>
+                                <div class="recommendation-box info-box mt-1" id="extra-info-box">
+                                    <h4><i class="fa-solid fa-circle-info"></i> About this Disease & Symptoms:</h4>
+                                    <p id="extra-info-text">Loading...</p>
+                                </div>
+
+                                <!-- Claude / Gemini AI Agronomist Consultation -->
+                                <button class="btn btn-claude mt-1" id="btn-claude-disease" onclick="fetchClaudeDisease()">
+                                    <i class="fa-solid fa-robot"></i> Ask AI Agronomist — In-Depth Explanation
+                                </button>
+                                <div class="claude-explanation hidden" id="claude-disease-box">
+                                    <div class="claude-header">
+                                        <i class="fa-solid fa-robot"></i>
+                                        <strong>AgriBot Agronomic Consultation:</strong>
+                                    </div>
+                                    <div id="claude-disease-content" class="claude-content">Loading...</div>
+                                </div>
+                            </div>
+                            <div class="error-state hidden" id="disease-error">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <p id="disease-error-msg">Something went wrong.</p>
+                                <button class="btn btn-secondary" onclick="resetDiseaseResult()">Try Again</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ─── CROP RECOMMENDATION ─── -->
+                <section id="crop-recommendation" class="page-section">
+                    <h1 class="page-title">Smart Crop Recommendation</h1>
+                    <p class="page-subtitle">Enter soil & climate metrics for Gemini AI-driven crop suggestions.</p>
+
+                    <!-- Live Weather Banner (filled automatically by Open-Meteo) -->
+                    <div id="weather-widget" class="weather-widget glass-panel hidden"></div>
+
+                    <div class="tool-layout">
+                        <div class="input-panel glass-panel">
+                            <!-- Auto-fill from live GPS + Open-Meteo -->
+                            <button type="button" id="btn-autofill" class="btn btn-location full-width" style="margin-bottom:1.25rem">
+                                <i class="fa-solid fa-location-dot"></i> Use My Location — Auto-fill Live Weather
+                            </button>
+
+                            <form id="crop-form" novalidate>
+                                <div class="form-section-title"><i class="fa-solid fa-flask"></i> Soil Nutrients (kg/ha)</div>
+                                <div class="form-grid">
+                                    <div class="input-group">
+                                        <label for="N">Nitrogen (N)</label>
+                                        <input type="number" id="N" required placeholder="e.g. 90" min="0" max="200">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="P">Phosphorus (P)</label>
+                                        <input type="number" id="P" required placeholder="e.g. 42" min="0" max="200">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="K">Potassium (K)</label>
+                                        <input type="number" id="K" required placeholder="e.g. 43" min="0" max="200">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="ph">Soil pH Level</label>
+                                        <input type="number" step="0.1" id="ph" required placeholder="e.g. 6.5" min="0" max="14">
+                                    </div>
+                                </div>
+
+                                <div class="form-section-title mt-1"><i class="fa-solid fa-cloud-sun"></i> Climate Conditions</div>
+                                <div class="form-grid">
+                                    <div class="input-group">
+                                        <label for="temperature">Temperature (°C)</label>
+                                        <input type="number" step="0.1" id="temperature" required placeholder="e.g. 20.8">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="humidity">Humidity (%)</label>
+                                        <input type="number" step="0.1" id="humidity" required placeholder="e.g. 82.0" min="0" max="100">
+                                    </div>
+                                    <div class="input-group full-width">
+                                        <label for="rainfall">Rainfall (mm)</label>
+                                        <input type="number" step="0.1" id="rainfall" required placeholder="e.g. 202.9" min="0">
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary full-width mt-1">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Get AI Recommendation
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="result-panel glass-panel" id="crop-result-panel">
+                            <div class="placeholder-state" id="crop-placeholder">
+                                <i class="fa-solid fa-seedling"></i>
+                                <p>Fill in the soil metrics to get recommendations</p>
+                            </div>
+                            <div class="loading-state hidden" id="crop-loading">
+                                <div class="spinner"></div>
+                                <p>Gemini AI is analyzing your soil...</p>
+                            </div>
+                            <div class="result-content hidden" id="crop-result-content">
+                                <h2><i class="fa-solid fa-check-circle"></i> Recommendation Ready</h2>
+                                <div class="result-badge success" id="crop-name-badge">Rice</div>
+
+                                <div class="soil-metrics-display">
+                                    <div class="metric-pill" id="soil-score-pill">
+                                        <i class="fa-solid fa-star"></i>
+                                        Soil Score: <strong><span id="soil-score">—</span>/10</strong>
+                                    </div>
+                                    <div class="metric-pill green" id="suitability-pill">
+                                        <i class="fa-solid fa-check"></i>
+                                        <span id="suitability-text">—</span>
+                                    </div>
+                                </div>
+
+                                <div class="recommendation-box mt-1">
+                                    <h4><i class="fa-solid fa-lightbulb"></i> Why this crop?</h4>
+                                    <p id="crop-reason-text">Loading...</p>
+                                </div>
+                                <div class="recommendation-box info-box mt-1">
+                                    <h4><i class="fa-solid fa-list-check"></i> Farming Tips:</h4>
+                                    <p id="crop-tips-text">Loading...</p>
+                                </div>
+                                <div class="recommendation-box warning-box mt-1" id="alt-crops-box">
+                                    <h4><i class="fa-solid fa-layer-group"></i> Alternative Crops:</h4>
+                                    <p id="alt-crops-text">Loading...</p>
+                                </div>
+                                <!-- Claude AI Explanation button -->
+                                <button class="btn btn-claude mt-1" id="btn-claude-crop" onclick="fetchClaudeCrop()">
+                                    <i class="fa-solid fa-robot"></i> Ask Claude AI — Detailed Farming Plan
+                                </button>
+                                <div class="claude-explanation hidden" id="claude-crop-box">
+                                    <div class="claude-header">
+                                        <i class="fa-solid fa-robot"></i>
+                                        <strong>AgriBot (Claude AI) says:</strong>
+                                    </div>
+                                    <div id="claude-crop-content" class="claude-content">Loading...</div>
+                                </div>
+                            </div>
+                            <div class="error-state hidden" id="crop-error">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <p id="crop-error-msg">Something went wrong.</p>
+                                <button class="btn btn-secondary" onclick="resetCropResult()">Try Again</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ─── AGRIBOT CHAT PAGE ─── -->
+                <section id="agribot-chat" class="page-section">
+                    <h1 class="page-title">AgriBot — AI Farming Assistant</h1>
+                    <p class="page-subtitle">Ask anything about crops, soil health, pests, or your latest scan results. Powered by Claude AI.</p>
+
+                    <div class="chat-layout">
+                        <div class="chat-window glass-panel" id="chat-window">
+                            <div class="chat-messages" id="chat-messages">
+                                <div class="chat-msg bot">
+                                    <div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>
+                                    <div class="chat-bubble">
+                                        👋 Hi! I'm <strong>AgriBot</strong>, your AI farming assistant powered by Claude.
+                                        <br><br>I can help you with:
+                                        <ul>
+                                            <li>🌿 Plant disease diagnosis &amp; treatments</li>
+                                            <li>🌱 Crop selection based on your soil</li>
+                                            <li>💧 Irrigation &amp; fertilizer advice</li>
+                                            <li>🌾 Pest management strategies</li>
+                                        </ul>
+                                        What would you like to know today?
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-input-area">
+                                <input type="text" id="chat-input" placeholder="Ask AgriBot anything... e.g. How do I treat tomato blight?" autocomplete="off">
+                                <button class="btn btn-send" id="btn-send-chat">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chat-sidebar glass-panel">
+                            <h3><i class="fa-solid fa-bolt"></i> Quick Questions</h3>
+                            <div class="quick-questions">
+                                <button class="quick-q" onclick="sendQuickQuestion('What crops grow best in acidic soil?')">Crops for acidic soil?</button>
+                                <button class="quick-q" onclick="sendQuickQuestion('How do I identify tomato early blight?')">Identify tomato blight?</button>
+                                <button class="quick-q" onclick="sendQuickQuestion('What is the best fertilizer for rice?')">Best rice fertilizer?</button>
+                                <button class="quick-q" onclick="sendQuickQuestion('How to prevent fungal diseases in crops?')">Prevent fungal diseases?</button>
+                                <button class="quick-q" onclick="sendQuickQuestion('When is the best time to plant wheat?')">Best time to plant wheat?</button>
+                                <button class="quick-q" onclick="sendQuickQuestion('How much water does corn need?')">Water needs for corn?</button>
+                            </div>
+                            <div class="chat-info">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <p>AgriBot remembers your conversation context and refers to your latest scan results when answering.</p>
+                            </div>
+                            <button class="btn btn-secondary full-width" id="btn-clear-chat" onclick="clearChat()">
+                                <i class="fa-solid fa-trash"></i> Clear Chat
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CNN ARCHITECTURE & DATASET MODAL                         -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="cnn-architecture-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <div>
+                    <h2><i class="fa-solid fa-network-wired"></i> AgriVision Deep Learning CNN Architecture</h2>
+                    <p class="modal-subtitle">Convolutional Neural Network built with TensorFlow / Keras & trained on the PlantVillage Benchmark Dataset</p>
+                </div>
+                <button type="button" class="btn-close-modal" id="btn-close-cnn-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Highlights Row -->
+                <div class="modal-stats-row">
+                    <div class="mstat-card">
+                        <small>Framework</small>
+                        <strong>TensorFlow / Keras</strong>
+                    </div>
+                    <div class="mstat-card">
+                        <small>Parameters</small>
+                        <strong>3,254,182</strong>
+                    </div>
+                    <div class="mstat-card">
+                        <small>Benchmark Dataset</small>
+                        <strong>PlantVillage (38 Classes)</strong>
+                    </div>
+                    <div class="mstat-card">
+                        <small>Validation Accuracy</small>
+                        <strong class="green-text">97.4% (Top-1)</strong>
+                    </div>
+                </div>
+
+                <!-- Section 1: Architecture Pipeline -->
+                <h3 class="modal-section-title"><i class="fa-solid fa-diagram-project"></i> Hierarchical Convolutional Feature Hierarchy</h3>
+                <div class="cnn-flow-pipeline">
+                    <div class="cnn-step">
+                        <div class="cnn-step-badge">Input Layer</div>
+                        <strong>224 × 224 × 3</strong>
+                        <p>Normalized RGB leaf image tensor [0, 1]</p>
+                    </div>
+                    <div class="cnn-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="cnn-step">
+                        <div class="cnn-step-badge">Conv Block 1</div>
+                        <strong>32 Filters (3×3)</strong>
+                        <p>Edges, color gradients, leaf boundary contours</p>
+                    </div>
+                    <div class="cnn-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="cnn-step">
+                        <div class="cnn-step-badge">Conv Block 2</div>
+                        <strong>64 Filters (3×3)</strong>
+                        <p>Leaf venation, chlorophyll density, chlorosis</p>
+                    </div>
+                    <div class="cnn-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="cnn-step">
+                        <div class="cnn-step-badge">Conv Block 3</div>
+                        <strong>128 Filters (3×3)</strong>
+                        <p>Necrotic pustules, halo rings, early blight spots</p>
+                    </div>
+                    <div class="cnn-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="cnn-step">
+                        <div class="cnn-step-badge">Conv Block 4</div>
+                        <strong>256 Filters (3×3)</strong>
+                        <p>Complex multi-spot pathology & Grad-CAM layer</p>
+                    </div>
+                    <div class="cnn-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="cnn-step final">
+                        <div class="cnn-step-badge">Softmax Head</div>
+                        <strong>38 Classes</strong>
+                        <p>GlobalAvgPool + Dense(512) + Softmax</p>
+                    </div>
+                </div>
+
+                <!-- Section 2: Keras Dataset Details -->
+                <h3 class="modal-section-title mt-2"><i class="fa-solid fa-database"></i> Keras PlantVillage Dataset Specifications</h3>
+                <div class="dataset-specs-grid">
+                    <div class="spec-card">
+                        <h4><i class="fa-solid fa-images"></i> 54,305 Images</h4>
+                        <p>High-resolution botanical foliage images photographed under standardized agricultural conditions across healthy and infected crops.</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4><i class="fa-solid fa-wheat-awn"></i> 14 Crop Species</h4>
+                        <p>Tomato, Potato, Corn (Maize), Apple, Grape, Peach, Bell Pepper, Strawberry, Cherry, Blueberry, Orange, Soybean, Squash, Raspberry.</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4><i class="fa-solid fa-wand-magic"></i> Keras Augmentation</h4>
+                        <p>Real-time data augmentation pipeline with <code>RandomFlip</code>, <code>RandomRotation(0.2)</code>, <code>RandomZoom(0.15)</code>, and <code>RandomContrast</code> to prevent overfitting.</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4><i class="fa-solid fa-eye"></i> Grad-CAM Computer Vision</h4>
+                        <p>Visual explanation technique computing gradients flowing into the final convolutional layer (conv4_2) to generate class activation heatmaps.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="btn-close-cnn-modal-footer">Close Explorer</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

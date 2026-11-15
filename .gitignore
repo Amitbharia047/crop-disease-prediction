@@ -1,0 +1,28 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Environment variables & secrets
+.env
+*.env
+!.env.example
+
+# Temporary uploads & OS files
+uploads/*
+!uploads/.gitkeep
+.DS_Store
+*.swp
+*.swo
+
+# IDE & system artifacts
+.vscode/
+.idea/
