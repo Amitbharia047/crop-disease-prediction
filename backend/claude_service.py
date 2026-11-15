@@ -96,6 +96,17 @@ def explain_disease_prediction(
     """
     confidence_pct = round(confidence * 100)
 
+    if not ANTHROPIC_API_KEY:
+        urgency = "High" if severity == "Severe" else ("Medium" if severity == "Moderate" else "Low")
+        return {
+            "headline": f"{disease} Diagnosis & Treatment Guide",
+            "explanation": f"The Deep Learning model identified {disease} on your {plant} with {confidence_pct}% confidence. The observed tissue symptoms indicate a {severity.lower()} condition requiring timely management.",
+            "action_plan": f"1. {treatment}\n2. Isolate and prune heavily infected foliage\n3. Sanitize shears and gardening equipment between plants",
+            "prevention_tips": "• Implement drip irrigation to keep leaf canopies dry\n• Space plants to promote optimal airflow\n• Rotate non-host crops to break pathogen cycles",
+            "urgency_level": urgency,
+            "confidence_note": f"The neural network evaluated key lesion patterns and is {confidence_pct}% confident."
+        }
+
     prompt = f"""
 The plant disease ML model returned this result:
 - Plant:      {plant}
@@ -163,6 +174,17 @@ def explain_crop_recommendation(
         dict with keys: headline, why_this_crop, soil_analysis,
                         farming_calendar, water_fertilizer_tips, warnings
     """
+    if not ANTHROPIC_API_KEY:
+        fertility = "optimal" if soil_health_score >= 7.5 else ("moderate" if soil_health_score >= 5.5 else "sub-optimal")
+        return {
+            "headline": f"{recommended_crop} Farming Strategic Plan",
+            "why_this_crop": f"Based on your soil nutrient profile (N:{n}, P:{p}, K:{k} kg/ha) and pH {ph}, {recommended_crop} is well-adapted for these growth conditions.",
+            "soil_analysis": f"Your soil health score is {soil_health_score}/10, indicating {fertility} fertility for {recommended_crop} cultivation.",
+            "farming_calendar": f"Plan land preparation and sowing in accordance with your regional planting calendar and monsoon/rain forecast ({rainfall} mm 30-day accumulation).",
+            "water_fertilizer_tips": f"Apply balanced NPK fertilization to sustain vegetative vigor; irrigate based on soil moisture and ambient temperature ({temperature}°C).",
+            "warnings": "Monitor drainage during heavy precipitation events to prevent waterlogging." if rainfall > 150 else "Maintain regular irrigation intervals."
+        }
+
     prompt = f"""
 The crop recommendation ML model analyzed this soil data:
 - Nitrogen (N): {n} kg/ha
@@ -249,6 +271,10 @@ def chat_with_agribot(
         if ctx_parts:
             system += "\n\nCurrent session context:\n" + "\n".join(ctx_parts)
 
+    if not ANTHROPIC_API_KEY:
+        last_msg = messages[-1].get("content", "Hello") if messages else "Hello"
+        return f"AgriBot Assistant: Regarding your inquiry about '{last_msg[:60]}', ensure balanced soil fertility, monitor for early foliar lesions, and maintain proper crop irrigation schedules. (Configure ANTHROPIC_API_KEY in your backend .env for full conversational capabilities)."
+
     try:
         client = _get_client()
 
@@ -302,6 +328,9 @@ def quick_explain(topic: str, context: str) -> str:
 
     Be practical and actionable. Use bullet points where helpful.
     """
+    if not ANTHROPIC_API_KEY:
+        return f"{topic}: Key agronomic area focusing on balanced crop management, soil condition monitoring, and proactive disease mitigation to preserve crop yield."
+
     try:
         client = _get_client()
         message = client.messages.create(
