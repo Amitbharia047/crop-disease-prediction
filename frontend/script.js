@@ -100,12 +100,21 @@ let donutChart = null;
 // ─── INIT ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is already logged in
-    const saved = localStorage.getItem('agrivision_user');
-    if (saved) {
-        currentUser = JSON.parse(saved);
-        showApp();
-    } else {
-        document.getElementById('login-page').classList.remove('hidden');
+    try {
+        const saved = localStorage.getItem('agrivision_user');
+        if (saved) {
+            currentUser = JSON.parse(saved);
+            if (!currentUser.stats) currentUser.stats = { totalScans: 0, diseases: 0, crops: 0 };
+            if (!currentUser.history) currentUser.history = [];
+            showApp();
+        } else {
+            const loginEl = document.getElementById('login-page');
+            if (loginEl) loginEl.classList.remove('hidden');
+        }
+    } catch (err) {
+        console.warn('Session parse error:', err);
+        const loginEl = document.getElementById('login-page');
+        if (loginEl) loginEl.classList.remove('hidden');
     }
 
     initLogin();
@@ -120,83 +129,108 @@ document.addEventListener('DOMContentLoaded', () => {
 ═══════════════════════════════════════════════════════════ */
 function initLogin() {
     const form = document.getElementById('login-form');
-    // Pre-fill the API key for convenience
-    document.getElementById('gemini-api-key').value = GEMINI_API_KEY;
+    if (!form) return;
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const name = document.getElementById('login-name').value.trim();
-        const email = document.getElementById('login-email').value.trim();
-        const apiKey = document.getElementById('gemini-api-key').value.trim();
+        const nameInput = document.getElementById('login-name');
+        const emailInput = document.getElementById('login-email');
+        const name = nameInput ? nameInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : '';
 
         let valid = true;
 
         if (!name) {
             showFieldError('name-error', 'login-name'); valid = false;
-        } else hideFieldError('name-error', 'login-name');
+        } else {
+            hideFieldError('name-error', 'login-name');
+        }
 
         if (!email || !email.includes('@')) {
             showFieldError('email-error', 'login-email'); valid = false;
-        } else hideFieldError('email-error', 'login-email');
-
-        if (!apiKey) {
-            showFieldError('key-error', 'gemini-api-key'); valid = false;
-        } else hideFieldError('key-error', 'gemini-api-key');
+        } else {
+            hideFieldError('email-error', 'login-email');
+        }
 
         if (!valid) return;
 
-        // Save user to localStorage
+        // Save user to localStorage with built-in API key
         currentUser = {
             name,
             email,
-            apiKey,
+            apiKey: GEMINI_API_KEY,
             joinedAt: new Date().toISOString(),
             stats: { totalScans: 0, diseases: 0, crops: 0 },
             history: []
         };
         localStorage.setItem('agrivision_user', JSON.stringify(currentUser));
 
-        // Animate login button
+        // Animate login button & enter dashboard directly
         const btn = document.getElementById('login-btn');
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
-        setTimeout(() => showApp(), 800);
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading Dashboard...';
+        setTimeout(() => showApp(), 500);
     });
 
-    document.getElementById('btn-logout').addEventListener('click', () => {
-        localStorage.removeItem('agrivision_user');
-        currentUser = null;
-        document.getElementById('app').classList.add('hidden');
-        document.getElementById('login-page').classList.remove('hidden');
-        // Reset login form
-        document.getElementById('login-form').reset();
-        document.getElementById('gemini-api-key').value = GEMINI_API_KEY;
-        document.getElementById('login-btn').innerHTML = '<span>Enter Dashboard</span><i class="fa-solid fa-arrow-right"></i>';
-    });
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('agrivision_user');
+            currentUser = null;
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('login-page').classList.remove('hidden');
+            // Reset login form
+            const f = document.getElementById('login-form');
+            if (f) f.reset();
+            const btn = document.getElementById('login-btn');
+            if (btn) btn.innerHTML = '<span>Enter Dashboard</span><i class="fa-solid fa-arrow-right"></i>';
+        });
+    }
 }
 
 function showFieldError(errorId, inputId) {
-    document.getElementById(errorId).classList.add('visible');
-    document.getElementById(inputId).classList.add('error');
+    const errEl = document.getElementById(errorId);
+    const inEl = document.getElementById(inputId);
+    if (errEl) errEl.classList.add('visible');
+    if (inEl) inEl.classList.add('error');
 }
 function hideFieldError(errorId, inputId) {
-    document.getElementById(errorId).classList.remove('visible');
-    document.getElementById(inputId).classList.remove('error');
+    const errEl = document.getElementById(errorId);
+    const inEl = document.getElementById(inputId);
+    if (errEl) errEl.classList.remove('visible');
+    if (inEl) inEl.classList.remove('error');
 }
 
 function showApp() {
-    document.getElementById('login-page').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
+    if (!currentUser) return;
+    if (!currentUser.stats) currentUser.stats = { totalScans: 0, diseases: 0, crops: 0 };
+    if (!currentUser.history) currentUser.history = [];
+
+    const loginEl = document.getElementById('login-page');
+    if (loginEl) loginEl.classList.add('hidden');
+
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.classList.remove('hidden');
+
     populateUserInfo();
-    updateDashboard();
+    try {
+        updateDashboard();
+    } catch (err) {
+        console.warn('Dashboard update error:', err);
+    }
 }
 
 function populateUserInfo() {
     if (!currentUser) return;
-    const firstName = currentUser.name.split(' ')[0];
-    document.getElementById('welcome-text').textContent = `Welcome back, ${firstName}! 👋`;
-    document.getElementById('user-name-display').textContent = currentUser.name;
-    document.getElementById('user-avatar').src =
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=2e7d32&color=fff&bold=true`;
+    const fullName = currentUser.name || 'Farmer';
+    const firstName = fullName.split(' ')[0] || 'Farmer';
+    const welcomeEl = document.getElementById('welcome-text');
+    if (welcomeEl) welcomeEl.textContent = `Welcome back, ${firstName}! 👋`;
+    const nameEl = document.getElementById('user-name-display');
+    if (nameEl) nameEl.textContent = fullName;
+    const avatarEl = document.getElementById('user-avatar');
+    if (avatarEl) {
+        avatarEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=2e7d32&color=fff&bold=true`;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -212,8 +246,11 @@ function initNavigation() {
             sections.forEach(s => s.classList.remove('active'));
             link.classList.add('active');
             const targetId = link.getAttribute('data-target');
-            document.getElementById(targetId).classList.add('active');
-            if (targetId === 'dashboard') updateDashboard();
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) targetSection.classList.add('active');
+            if (targetId === 'dashboard') {
+                try { updateDashboard(); } catch (_) {}
+            }
         });
     });
 }
@@ -223,15 +260,20 @@ function initNavigation() {
 ═══════════════════════════════════════════════════════════ */
 function updateDashboard() {
     if (!currentUser) return;
+    if (!currentUser.stats) currentUser.stats = { totalScans: 0, diseases: 0, crops: 0 };
+    if (!currentUser.history) currentUser.history = [];
 
-    document.getElementById('stat-total-scans').textContent = currentUser.stats.totalScans;
-    document.getElementById('stat-diseases').textContent = currentUser.stats.diseases;
-    document.getElementById('stat-crops').textContent = currentUser.stats.crops;
+    const scansEl = document.getElementById('stat-total-scans');
+    if (scansEl) scansEl.textContent = currentUser.stats.totalScans || 0;
+    const diseasesEl = document.getElementById('stat-diseases');
+    if (diseasesEl) diseasesEl.textContent = currentUser.stats.diseases || 0;
+    const cropsEl = document.getElementById('stat-crops');
+    if (cropsEl) cropsEl.textContent = currentUser.stats.crops || 0;
 
-    renderActivityChart();
-    renderDonutChart();
-    renderHistory();
-    initLiveWeatherButton();
+    try { renderActivityChart(); } catch (e) { console.warn('Activity chart error:', e); }
+    try { renderDonutChart(); } catch (e) { console.warn('Donut chart error:', e); }
+    try { renderHistory(); } catch (e) { console.warn('History render error:', e); }
+    try { initLiveWeatherButton(); } catch (e) { console.warn('Weather button error:', e); }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -355,8 +397,14 @@ function generateFarmingAdvice(temp, humidity, rainfall, uv) {
 }
 
 function renderActivityChart() {
-    const ctx = document.getElementById('activityChart').getContext('2d');
-    if (activityChart) activityChart.destroy();
+    if (typeof Chart === 'undefined') return;
+    const canvas = document.getElementById('activityChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    if (activityChart) {
+        try { activityChart.destroy(); } catch (_) {}
+    }
 
     // Build last 7 days of scan data from history
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -368,63 +416,78 @@ function renderActivityChart() {
         counts[d.getDay() === 0 ? 6 : d.getDay() - 1]++;
     });
 
-    activityChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: days,
-            datasets: [{
-                label: 'Scans',
-                data: counts,
-                borderColor: '#2e7d32',
-                backgroundColor: 'rgba(46,125,50,0.12)',
-                borderWidth: 2.5, fill: true, tension: 0.4,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: '#2e7d32',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
-                x: { grid: { display: false } }
+    try {
+        activityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'Scans',
+                    data: counts,
+                    borderColor: '#2e7d32',
+                    backgroundColor: 'rgba(46,125,50,0.12)',
+                    borderWidth: 2.5, fill: true, tension: 0.4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#2e7d32',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    x: { grid: { display: false } }
+                }
             }
-        }
-    });
+        });
+    } catch (e) {
+        console.warn('Error creating activity chart:', e);
+    }
 }
 
 function renderDonutChart() {
-    const ctx = document.getElementById('donutChart').getContext('2d');
-    if (donutChart) donutChart.destroy();
+    if (typeof Chart === 'undefined') return;
+    const canvas = document.getElementById('donutChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    if (donutChart) {
+        try { donutChart.destroy(); } catch (_) {}
+    }
 
-    const healthy = currentUser.history.filter(h => h.type === 'disease' && h.result === 'Healthy').length;
-    const diseased = currentUser.stats.diseases;
-    const crops = currentUser.stats.crops;
+    const history = currentUser?.history || [];
+    const healthy = history.filter(h => h.type === 'disease' && h.result === 'Healthy').length;
+    const diseased = currentUser?.stats?.diseases || 0;
+    const crops = currentUser?.stats?.crops || 0;
 
-    donutChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Healthy Plants', 'Diseases Found', 'Crop Analyses'],
-            datasets: [{
-                data: [healthy || 0, diseased || 0, crops || 0],
-                backgroundColor: ['#2ecc71','#e74c3c','#3498db'],
-                borderWidth: 0,
-                hoverOffset: 8,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { padding: 15, font: { size: 11 }, usePointStyle: true }
-                }
+    try {
+        donutChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Healthy Plants', 'Diseases Found', 'Crop Analyses'],
+                datasets: [{
+                    data: [healthy || 0, diseased || 0, crops || 0],
+                    backgroundColor: ['#2ecc71','#e74c3c','#3498db'],
+                    borderWidth: 0,
+                    hoverOffset: 8,
+                }]
             },
-            cutout: '65%',
-        }
-    });
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15, font: { size: 11 }, usePointStyle: true }
+                    }
+                },
+                cutout: '65%',
+            }
+        });
+    } catch (e) {
+        console.warn('Error creating donut chart:', e);
+    }
 }
 
 function renderHistory() {
@@ -1459,27 +1522,6 @@ function fallbackClassify(file, cvAnalysis) {
     const meta = PLANTVILLAGE_TAXONOMY[chosenKey] || PLANTVILLAGE_TAXONOMY['Tomato___healthy'];
     const conf = 0.89 + ((imgHash % 8) * 0.01);
     const topPreds = generateDifferentialPredictions(meta.disease, meta.plant, conf, chosenKey);
-
-    return {
-        disease: meta.disease,
-        plant: meta.plant,
-        confidence: conf,
-        confidence_pct: `${Math.round(conf * 100)}%`,
-        severity: meta.severity,
-        treatment: meta.treatment,
-        prevention: meta.prevention,
-        about: meta.about,
-        gradcam_heatmap: cvAnalysis.gradcam_heatmap,
-        top_predictions: topPreds,
-        cv_metrics: cvAnalysis.cv_metrics,
-        model_info: {
-            name: 'AgriVision-CNN v2 (Custom Deep ConvNet)',
-            framework: 'TensorFlow / Keras',
-            dataset: 'PlantVillage Benchmark Dataset (38 Classes · 54,305 Images)',
-            validation_accuracy: '97.4%'
-        }
-    };
-}
 
     return {
         disease: meta.disease,
