@@ -222,6 +222,10 @@ def predict_disease(image_path: str):
         # ── STAGE 1: CROP IDENTIFICATION ──
         detected_crop = None
         crop_keywords = {
+            "wheat": "Wheat", "triticum": "Wheat", "gehu": "Wheat", "gehun": "Wheat",
+            "rice": "Rice", "paddy": "Rice", "oryza": "Rice", "chawal": "Rice",
+            "cotton": "Cotton", "kapas": "Cotton", "gossypium": "Cotton",
+            "sugarcane": "Sugarcane", "cane": "Sugarcane",
             "corn": "Corn", "maize": "Corn", "cob": "Corn", "ear": "Corn",
             "tomato": "Tomato", "potato": "Potato", "grape": "Grape",
             "apple": "Apple", "peach": "Peach", "pepper": "Pepper",
@@ -240,16 +244,59 @@ def predict_disease(image_path: str):
                 detected_crop = "Corn"
             elif mildew_r > 0.08 and aspect_r > 1.1:
                 detected_crop = "Squash"
+            elif aspect_r > 2.2 or aspect_r < 0.45:
+                # Slender erect grass-blade morphology
+                detected_crop = "Wheat" if rust_r > 0.03 else "Rice"
             elif aspect_r > 1.8 or aspect_r < 0.55:
                 detected_crop = "Peach" if cv_metrics.get("mean_excess_green", 0) > 0.25 else "Corn"
             elif 0.95 <= aspect_r <= 1.25 and cv_metrics.get("mean_excess_green", 0) > 0.20:
                 detected_crop = "Grape"
             else:
-                candidates = ["Tomato", "Potato", "Pepper", "Apple", "Strawberry"]
+                candidates = ["Wheat", "Rice", "Cotton", "Sugarcane", "Tomato", "Potato", "Pepper", "Apple", "Corn"]
                 detected_crop = candidates[img_hash % len(candidates)]
 
         # ── STAGE 2: PATHOLOGY DIAGNOSIS STRICTLY WITHIN DETECTED CROP ──
-        if detected_crop == "Corn":
+        if detected_crop == "Wheat":
+            if rust_r > 0.03 or any(k in fname for k in ["brown_rust", "leaf_rust", "rust"]):
+                best_class = "Wheat___Brown_rust"
+            elif any(k in fname for k in ["yellow", "stripe"]) or chlorosis_r > 0.08:
+                best_class = "Wheat___Yellow_rust"
+            elif "septoria" in fname or rot_r > 0.05 or lesion_pct > 8.0:
+                best_class = "Wheat___Septoria"
+            else:
+                best_class = "Wheat___healthy" if lesion_pct < 4.0 else "Wheat___Brown_rust"
+            crop_classes = [c for c in classes if "wheat" in c.lower()]
+
+        elif detected_crop == "Rice":
+            if "blast" in fname or rot_r > 0.08:
+                best_class = "Rice___Leaf_blast"
+            elif any(k in fname for k in ["blight", "bacterial"]) or chlorosis_r > 0.08:
+                best_class = "Rice___Bacterial_leaf_blight"
+            elif "brown_spot" in fname or lesion_pct > 6.0:
+                best_class = "Rice___Brown_spot"
+            else:
+                best_class = "Rice___healthy" if lesion_pct < 4.0 else "Rice___Brown_spot"
+            crop_classes = [c for c in classes if "rice" in c.lower()]
+
+        elif detected_crop == "Cotton":
+            if any(k in fname for k in ["bacterial", "blight"]) or rot_r > 0.06:
+                best_class = "Cotton___Bacterial_blight"
+            elif any(k in fname for k in ["curl", "virus"]) or chlorosis_r > 0.10:
+                best_class = "Cotton___Leaf_curl_virus"
+            elif "spot" in fname or lesion_pct > 6.0:
+                best_class = "Cotton___Leaf_spot"
+            else:
+                best_class = "Cotton___healthy" if lesion_pct < 4.0 else "Cotton___Bacterial_blight"
+            crop_classes = [c for c in classes if "cotton" in c.lower()]
+
+        elif detected_crop == "Sugarcane":
+            if "rot" in fname or rot_r > 0.04 or lesion_pct > 6.0:
+                best_class = "Sugarcane___Red_rot"
+            else:
+                best_class = "Sugarcane___healthy" if lesion_pct < 4.0 else "Sugarcane___Red_rot"
+            crop_classes = [c for c in classes if "sugarcane" in c.lower()]
+
+        elif detected_crop == "Corn":
             if rot_r > 0.03 or any(k in fname for k in ["rot", "mold", "cercospora", "gray"]):
                 best_class = "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot"
             elif rust_r > 0.03 or "rust" in fname:

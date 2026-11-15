@@ -55,7 +55,22 @@ PLANT_VILLAGE_CLASSES = [
     "Tomato___Target_Spot",
     "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
     "Tomato___Tomato_mosaic_virus",
-    "Tomato___healthy"
+    "Tomato___healthy",
+    # Extended Major Field Crops
+    "Wheat___Brown_rust",
+    "Wheat___Yellow_rust",
+    "Wheat___Septoria",
+    "Wheat___healthy",
+    "Rice___Brown_spot",
+    "Rice___Leaf_blast",
+    "Rice___Bacterial_leaf_blight",
+    "Rice___healthy",
+    "Cotton___Bacterial_blight",
+    "Cotton___Leaf_spot",
+    "Cotton___Leaf_curl_virus",
+    "Cotton___healthy",
+    "Sugarcane___Red_rot",
+    "Sugarcane___healthy"
 ]
 
 # Rich metadata for agronomic diagnostics, treatments, and severity
@@ -401,6 +416,136 @@ DISEASE_METADATA: Dict[str, Dict[str, Any]] = {
         "organic_treatment": "No treatment required. Maintain balanced 5-10-10 or organic compost tea feedings.",
         "chemical_treatment": "None needed.",
         "prevention": "Maintain regular watering and calcium levels to prevent blossom end rot."
+    },
+    # ─── WHEAT ───
+    "Wheat___Brown_rust": {
+        "plant": "Wheat",
+        "display_name": "Wheat - Brown / Leaf Rust (Puccinia triticina)",
+        "severity": "Severe",
+        "symptoms": "Small, circular to oval, bright orange-brown pustules scattered randomly across the upper leaf blades.",
+        "organic_treatment": "Apply bio-fungicides like Trichoderma viride or neem seed kernel extract early.",
+        "chemical_treatment": "Spray triazole fungicides (propiconazole 25% EC @ 0.1% or tebuconazole) at early flag leaf stage.",
+        "prevention": "Cultivate rust-resistant wheat varieties (e.g. HD-2967, PBW-550) and practice timely sowing."
+    },
+    "Wheat___Yellow_rust": {
+        "plant": "Wheat",
+        "display_name": "Wheat - Yellow / Stripe Rust (Puccinia striiformis)",
+        "severity": "Severe",
+        "symptoms": "Distinct linear parallel stripes of bright yellow-orange pustules aligned along leaf veins.",
+        "organic_treatment": "Early field sanitation, remove volunteer grasses, and apply systemic organic bio-fungicides.",
+        "chemical_treatment": "Foliar spray of propiconazole 25 EC or azoxystrobin at first sign of yellow stripes.",
+        "prevention": "Plant resistant cultivars with Yr genes; monitor during cool, moist weather (10-15°C)."
+    },
+    "Wheat___Septoria": {
+        "plant": "Wheat",
+        "display_name": "Wheat - Septoria Leaf Blotch (Zymoseptoria tritici)",
+        "severity": "Moderate",
+        "symptoms": "Irregular brown necrotic lesions containing tiny black fungal fruiting bodies (pycnidia).",
+        "organic_treatment": "Crop rotation with non-gramineous broadleaf crops; compost crop residue.",
+        "chemical_treatment": "Apply SDHI fungicides or prothioconazole when flag leaf emerges (GS39).",
+        "prevention": "Avoid high seed densities and eradicate volunteer wheat seedlings."
+    },
+    "Wheat___healthy": {
+        "plant": "Wheat",
+        "display_name": "Wheat - Healthy Crop Foliage",
+        "severity": "None",
+        "symptoms": "Vibrant upright green blades, clean tillers, sturdy stems, and no fungal pustules.",
+        "organic_treatment": "No treatment needed. Maintain balanced micronutrients (zinc, iron).",
+        "chemical_treatment": "None needed.",
+        "prevention": "Practice timely sowing and optimal irrigation at crown root initiation."
+    },
+    # ─── RICE ───
+    "Rice___Brown_spot": {
+        "plant": "Rice",
+        "display_name": "Rice - Brown Spot (Bipolaris oryzae)",
+        "severity": "Moderate",
+        "symptoms": "Oval to circular dark brown spots with grey or whitish centers across the leaf blades and glumes.",
+        "organic_treatment": "Treat seeds with hot water (53-54°C for 10 mins) or Pseudomonas fluorescens.",
+        "chemical_treatment": "Foliar spray of propiconazole or iprodione at maximum tillering and panicle initiation.",
+        "prevention": "Correct soil potassium and silicon deficiencies; avoid drought stress in nursery beds."
+    },
+    "Rice___Leaf_blast": {
+        "plant": "Rice",
+        "display_name": "Rice - Leaf Blast (Magnaporthe oryzae)",
+        "severity": "Severe",
+        "symptoms": "Spindle-shaped or diamond-shaped lesions with grayish-white centers and dark brown margins.",
+        "organic_treatment": "Apply fermented cow dung slurry or silicon foliar sprays to strengthen epidermal cell walls.",
+        "chemical_treatment": "Spray tricyclazole 75 WP (0.6 g/L) or isoprothiolane at symptom onset.",
+        "prevention": "Avoid excessive nitrogen application; maintain uniform water depth in paddies."
+    },
+    "Rice___Bacterial_leaf_blight": {
+        "plant": "Rice",
+        "display_name": "Rice - Bacterial Leaf Blight (Xanthomonas oryzae)",
+        "severity": "Severe",
+        "symptoms": "Water-soaked to yellowish-white wavy stripes starting from leaf tips and margins, progressing downward.",
+        "organic_treatment": "Spray fresh cow dung extract (20%) or copper hydroxide; drain excess standing water.",
+        "chemical_treatment": "Apply plantomycin / streptomycin sulfate (100 ppm) combined with copper oxychloride.",
+        "prevention": "Use resistant seed varieties; avoid clipping seedling tips at transplanting."
+    },
+    "Rice___healthy": {
+        "plant": "Rice",
+        "display_name": "Rice - Healthy Paddy Foliage",
+        "severity": "None",
+        "symptoms": "Lush emerald-green erect blades, clean sheaths, and vigorous tillering.",
+        "organic_treatment": "No treatment needed. Maintain recommended split nitrogen and potash nutrition.",
+        "chemical_treatment": "None needed.",
+        "prevention": "Maintain proper water regime and avoid stagnant water."
+    },
+    # ─── COTTON ───
+    "Cotton___Bacterial_blight": {
+        "plant": "Cotton",
+        "display_name": "Cotton - Bacterial Blight / Angular Leaf Spot (Xanthomonas citri pv. malvacearum)",
+        "severity": "Severe",
+        "symptoms": "Angular water-soaked spots bounded by veins on leaves, turning dark brown/black; blackarm on stems.",
+        "organic_treatment": "Delint seeds with sulfuric acid; spray copper-based organic formulations.",
+        "chemical_treatment": "Spray copper oxychloride (0.2%) mixed with streptocycline (100 ppm).",
+        "prevention": "Use certified acid-delinted seeds and practice deep summer plowing."
+    },
+    "Cotton___Leaf_spot": {
+        "plant": "Cotton",
+        "display_name": "Cotton - Alternaria / Cercospora Leaf Spot",
+        "severity": "Moderate",
+        "symptoms": "Brown circular spots with concentric target rings and reddish-purple borders, causing premature leaf drop.",
+        "organic_treatment": "Neem oil foliar application (2%) and balanced potassium supplementation.",
+        "chemical_treatment": "Spray mancozeb (2 g/L) or azoxystrobin at early spot development.",
+        "prevention": "Avoid moisture stress and ensure adequate potash fertilization."
+    },
+    "Cotton___Leaf_curl_virus": {
+        "plant": "Cotton",
+        "display_name": "Cotton - Leaf Curl Virus (CLCuV)",
+        "severity": "Severe",
+        "symptoms": "Upward or downward cupping of leaves, thickening of veins, and enations (leaf-like outgrowths) on underside.",
+        "organic_treatment": "Install yellow sticky traps (10-15 per acre) to control whitefly vector (Bemisia tabaci).",
+        "chemical_treatment": "Spray systemic insecticides (diafenthiuron or pymetrozine) to manage whitefly populations.",
+        "prevention": "Eradicate weed hosts (Abutilon, Sida) and grow CLCuD-resistant Bt hybrids."
+    },
+    "Cotton___healthy": {
+        "plant": "Cotton",
+        "display_name": "Cotton - Healthy Canopy",
+        "severity": "None",
+        "symptoms": "Broad lobed dark green leaves with clean petioles, healthy squares, and vigorous bolls.",
+        "organic_treatment": "No treatment required. Maintain balanced micronutrient foliar spray (boron, magnesium).",
+        "chemical_treatment": "None needed.",
+        "prevention": "Maintain regular scouting for early sucking pest management."
+    },
+    # ─── SUGARCANE ───
+    "Sugarcane___Red_rot": {
+        "plant": "Sugarcane",
+        "display_name": "Sugarcane - Red Rot (Colletotrichum falcatum)",
+        "severity": "Severe",
+        "symptoms": "Discoloration and drying of the spindle leaf; internal stalk tissue turns red with characteristic white horizontal cross-bands.",
+        "organic_treatment": "Hot water treatment of seed setts (52°C for 30 minutes); apply Trichoderma harzianum to soil.",
+        "chemical_treatment": "Dip setts in carbendazim (0.1%) solution before planting.",
+        "prevention": "Adopt crop rotation with rice or green manure; select disease-free setts from healthy seed nurseries."
+    },
+    "Sugarcane___healthy": {
+        "plant": "Sugarcane",
+        "display_name": "Sugarcane - Healthy Canopy",
+        "severity": "None",
+        "symptoms": "Robust elongated dark green leaves with clean midribs and vigorous stalk development.",
+        "organic_treatment": "No treatment required. Ensure adequate nitrogen and earthing-up.",
+        "chemical_treatment": "None needed.",
+        "prevention": "Maintain trash mulching and timely irrigation."
     }
 }
 
