@@ -36,5 +36,19 @@
   "34": "Tomato___Target_Spot",
   "35": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
   "36": "Tomato___Tomato_mosaic_virus",
-  "37": "Tomato___healthy"
+  "37": "Tomato___healthy",
+  "38": "Wheat___Brown_rust",
+  "39": "Wheat___Yellow_rust",
+  "40": "Wheat___Septoria",
+  "41": "Wheat___healthy",
+  "42": "Rice___Brown_spot",
+  "43": "Rice___Leaf_blast",
+  "44": "Rice___Bacterial_leaf_blight",
+  "45": "Rice___healthy",
+  "46": "Cotton___Bacterial_blight",
+  "47": "Cotton___Leaf_spot",
+  "48": "Cotton___Leaf_curl_virus",
+  "49": "Cotton___healthy",
+  "50": "Sugarcane___Red_rot",
+  "51": "Sugarcane___healthy"
 }

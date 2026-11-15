@@ -1200,6 +1200,52 @@ function initGradCamViewToggles() {
 }
 
 /**
+ * Multimodal Gemini Vision query for plant pathology
+ */
+async function queryVisionPathology(base64Image, mimeType, prompt) {
+    const body = JSON.stringify({
+        contents: [{ parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mimeType || 'image/jpeg', data: base64Image } }
+        ]}],
+        generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 2048,
+            responseMimeType: "application/json"
+        }
+    });
+
+    let lastError = '';
+    for (const model of VISION_MODELS) {
+        try {
+            const response = await fetch(geminiUrl(model), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                const msg = err.error?.message || '';
+                if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not supported')) {
+                    lastError = msg;
+                    continue;
+                }
+                throw new Error(msg || `API Error ${response.status}`);
+            }
+            const data = await response.json();
+            const rawText = extractModelText(data);
+            const parsed = parseJSONResponse(rawText);
+            if (parsed && (parsed.plant || parsed.disease)) {
+                return parsed;
+            }
+        } catch (err) {
+            lastError = err.message;
+        }
+    }
+    throw new Error(`Vision models exhausted. Last error: ${lastError}`);
+}
+
+/**
  * Executes Deep Learning CNN prediction:
  * 1. Checks if local FastAPI backend (/api/predict/disease) is online
  * 2. Extracts HTML5 Canvas Computer Vision feature metrics & generates Grad-CAM attention heatmap
@@ -1231,8 +1277,9 @@ async function analyzeWithVisionCNN(file, base64) {
 
         if (beResponse.ok) {
             const beData = await beResponse.json();
-            if (beData && beData.disease) {
-                return beData;
+            const payload = beData.data || beData;
+            if (payload && payload.disease) {
+                return payload;
             }
         }
     } catch (_) {
@@ -1338,6 +1385,7 @@ function processCanvasComputerVision(file) {
 
                 let foregroundPixels = 0;
                 let leafGreenPixels = 0;
+                let tomatoFruitPixels = 0;
                 let cornKernelPixels = 0;
                 let darkMoldRotPixels = 0;
                 let rustPustulePixels = 0;
@@ -1363,24 +1411,30 @@ function processCanvasComputerVision(file) {
                             foregroundPixels++;
                         }
 
-                        // 1. Corn Ear / Kernel Detection (golden yellow, amber, orange kernels)
-                        const isCornKernel = (r > 135 && g > 85 && b < 85 && r > g * 0.95 && g > b * 1.35);
+                        // 1. Tomato Red Fruit Detection (distinct vivid red to red-orange fruits)
+                        const isTomatoFruit = !isBg && (r > 155 && r > g * 1.30 && r > b * 1.45 && b < 115);
+                        if (isTomatoFruit) {
+                            tomatoFruitPixels++;
+                        }
+
+                        // 2. Corn Ear / Golden Kernel Detection (amber/golden yellow kernels with balanced red-green)
+                        const isCornKernel = !isBg && !isTomatoFruit && (r > 150 && g > 115 && b < 85 && Math.abs(r - g) < 55 && g > b * 1.35);
                         if (isCornKernel) {
                             cornKernelPixels++;
                         }
 
-                        // 2. Foliar Green Blade Detection
+                        // 3. Foliar Green Blade Detection
                         const exg = (2 * g - r - b) / 255.0;
-                        const isGreen = exg > 0.02 || (g > r * 0.95 && g > b * 1.1);
+                        const isGreen = !isTomatoFruit && (exg > 0.02 || (g > r * 0.95 && g > b * 1.1));
                         if (isGreen) {
                             leafGreenPixels++;
                             sumExg += exg;
                         }
 
-                        // 3. Dark Mold, Rot, or Necrotic Blight Lesions (gray/black mold, ear rot, dead spots)
-                        const isDarkRotMold = !isBg && (
+                        // 4. Dark Mold, Rot, or Necrotic Blight Lesions (gray/black mold, ear rot, dead spots)
+                        const isDarkRotMold = !isBg && !isTomatoFruit && !isCornKernel && (
                             ((r < 95 && g < 95 && b < 95) && (r + g + b > 50)) ||
-                            (r > g && r > b && r < 145 && b < 85 && !isCornKernel) ||
+                            (r > g && r > b && r < 145 && b < 85) ||
                             (Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && r < 130 && r > 40)
                         );
                         if (isDarkRotMold) {
@@ -1388,22 +1442,22 @@ function processCanvasComputerVision(file) {
                             lesionCoordinates.push({ x, y, weight: 1.0 });
                         }
 
-                        // 4. Rust Pustules (bright reddish-brown cinnamon spores)
-                        const isRust = !isCornKernel && (r > 140 && r > g * 1.25 && b < 75);
+                        // 5. Rust Pustules (bright reddish-brown cinnamon spores on leaves)
+                        const isRust = !isTomatoFruit && !isCornKernel && (r > 140 && r > g * 1.25 && b < 75 && isGreen);
                         if (isRust) {
                             rustPustulePixels++;
                             lesionCoordinates.push({ x, y, weight: 0.9 });
                         }
 
-                        // 5. Powdery Mildew (chalky white/gray surface film)
-                        const isMildew = (r > 165 && g > 165 && b > 155 && Math.abs(r - g) < 22 && Math.abs(g - b) < 22 && isGreen);
+                        // 6. Powdery Mildew (chalky white/gray surface film on green foliage)
+                        const isMildew = isGreen && (r > 165 && g > 165 && b > 155 && Math.abs(r - g) < 22 && Math.abs(g - b) < 22);
                         if (isMildew) {
                             mildewPowderPixels++;
                             lesionCoordinates.push({ x, y, weight: 0.8 });
                         }
 
-                        // 6. Chlorosis / Yellow Halos
-                        const isChlorosis = !isCornKernel && (r > 125 && g > 120 && b < 90 && Math.abs(r - g) < 30);
+                        // 7. Chlorosis / Yellow Halos
+                        const isChlorosis = !isTomatoFruit && !isCornKernel && (r > 125 && g > 120 && b < 90 && Math.abs(r - g) < 30);
                         if (isChlorosis) {
                             chlorosisYellowPixels++;
                             lesionCoordinates.push({ x, y, weight: 0.6 });
@@ -1411,7 +1465,8 @@ function processCanvasComputerVision(file) {
                     }
                 }
 
-                const totalSampled = Math.max(foregroundPixels, leafGreenPixels + cornKernelPixels, 1);
+                const totalSampled = Math.max(foregroundPixels, leafGreenPixels + cornKernelPixels + tomatoFruitPixels, 1);
+                const tomatoFruitRatio = Math.round((tomatoFruitPixels / totalSampled) * 1000) / 1000;
                 const cornKernelRatio = Math.round((cornKernelPixels / totalSampled) * 1000) / 1000;
                 const rotRatio = Math.round((darkMoldRotPixels / totalSampled) * 1000) / 1000;
                 const rustRatio = Math.round((rustPustulePixels / totalSampled) * 1000) / 1000;
@@ -1495,6 +1550,7 @@ function processCanvasComputerVision(file) {
                     },
                     lesion_pct: lesionPct,
                     mean_exg: meanExg,
+                    tomato_fruit_ratio: tomatoFruitRatio,
                     corn_kernel_ratio: cornKernelRatio,
                     rot_ratio: rotRatio,
                     rust_ratio: rustRatio,
@@ -1518,6 +1574,7 @@ function processCanvasComputerVision(file) {
 function fallbackClassify(file, cvAnalysis) {
     const fname = (file.name || '').toLowerCase();
     const lesionPct = cvAnalysis.lesion_pct || 0;
+    const tomatoFruitRatio = cvAnalysis.tomato_fruit_ratio || 0;
     const cornKernelRatio = cvAnalysis.corn_kernel_ratio || 0;
     const rotRatio = cvAnalysis.rot_ratio || 0;
     const rustRatio = cvAnalysis.rust_ratio || 0;
@@ -1573,10 +1630,13 @@ function fallbackClassify(file, cvAnalysis) {
 
     // If filename has no crop name, classify by Computer Vision optical & morphological features:
     if (!detectedCrop) {
-        if (cornKernelRatio > 0.08 || (aspectRatio < 0.8 && cornKernelRatio > 0.04)) {
+        if (tomatoFruitRatio > 0.04) {
+            // Distinct red/orange tomato fruit or cluster on vine
+            detectedCrop = 'Tomato';
+        } else if (cornKernelRatio > 0.08 && tomatoFruitRatio < 0.03) {
             // Distinct golden kernel grid or ear of corn morphology
             detectedCrop = 'Corn';
-        } else if (mildewRatio > 0.08 && aspectRatio > 1.1) {
+        } else if (mildewRatio > 0.12 && cvAnalysis.mean_exg > 0.15) {
             // Broad fan-shaped squash leaf with powdery coating
             detectedCrop = 'Squash';
         } else if (aspectRatio > 2.2 || aspectRatio < 0.45) {
@@ -1590,7 +1650,7 @@ function fallbackClassify(file, cvAnalysis) {
             detectedCrop = 'Grape';
         } else {
             // Diverse field crops and horticultural species
-            const candidateCrops = ['Wheat', 'Rice', 'Cotton', 'Sugarcane', 'Tomato', 'Potato', 'Pepper', 'Apple', 'Corn'];
+            const candidateCrops = ['Tomato', 'Potato', 'Wheat', 'Rice', 'Cotton', 'Corn', 'Pepper', 'Apple'];
             detectedCrop = candidateCrops[imgHash % candidateCrops.length];
         }
     }
@@ -1648,7 +1708,9 @@ function fallbackClassify(file, cvAnalysis) {
             chosenKey = (lesionPct < 4.0) ? 'Corn_(maize)___healthy' : 'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot';
         }
     } else if (detectedCrop === 'Tomato') {
-        if (fname.includes('early_blight') || (rotRatio > 0.06 && lesionPct > 12.0)) {
+        if (tomatoFruitRatio > 0.04 && lesionPct < 8.0) {
+            chosenKey = 'Tomato___healthy';
+        } else if (fname.includes('early_blight') || (rotRatio > 0.06 && lesionPct > 12.0)) {
             chosenKey = 'Tomato___Early_blight';
         } else if (fname.includes('late_blight') || rotRatio > 0.12) {
             chosenKey = 'Tomato___Late_blight';
@@ -1663,7 +1725,7 @@ function fallbackClassify(file, cvAnalysis) {
         } else if (fname.includes('mosaic')) {
             chosenKey = 'Tomato___Tomato_mosaic_virus';
         } else {
-            chosenKey = (lesionPct < 4.0) ? 'Tomato___healthy' : 'Tomato___Early_blight';
+            chosenKey = (lesionPct < 4.0 || tomatoFruitRatio > 0.03) ? 'Tomato___healthy' : 'Tomato___Early_blight';
         }
     } else if (detectedCrop === 'Potato') {
         if (fname.includes('late') || rotRatio > 0.10) {

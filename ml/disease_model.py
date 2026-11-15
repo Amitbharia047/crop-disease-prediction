@@ -1,3 +1,6 @@
+
+
+
 """
 disease_model.py — AgriVision Deep Learning & Computer Vision Inference Engine
 ─────────────────────────────────────────────────────────────────
@@ -115,33 +118,38 @@ def extract_computer_vision_metrics(image: Image.Image):
     fg_mask = ~is_bg
     fg_count = max(float(np.sum(fg_mask)), 1.0)
 
-    # 1. Corn ear / kernel detection (golden yellow/amber kernels)
-    corn_kernel_mask = (r > 0.52) & (g > 0.33) & (b < 0.33) & (r > g * 0.95) & (g > b * 1.35) & fg_mask
+    # 1. Tomato red fruit detection (vivid red/orange tomato fruits on vine)
+    tomato_fruit_mask = (r > 0.55) & (r > g * 1.30) & (r > b * 1.45) & (b < 0.45) & fg_mask
+    tomato_fruit_ratio = float(np.sum(tomato_fruit_mask)) / fg_count
+
+    # 2. Corn ear / kernel detection (amber golden yellow kernels with balanced red-green)
+    corn_kernel_mask = (r > 0.55) & (g > 0.40) & (b < 0.32) & (np.abs(r - g) < 0.22) & (g > b * 1.35) & (~tomato_fruit_mask) & fg_mask
     corn_kernel_ratio = float(np.sum(corn_kernel_mask)) / fg_count
 
-    # 2. Foliar green blade mask
+    # 3. Foliar green blade mask (strictly green foliage, excluding bright washed out background)
     exg = 2.0 * g - r - b
-    leaf_mask = ((exg > 0.02) | ((g > r * 0.92) & (g > b * 1.05))) & fg_mask
+    leaf_mask = (exg > 0.04) & (g > r) & (g > b) & fg_mask & (~tomato_fruit_mask) & (r + g + b < 2.1)
     leaf_pixel_count = max(float(np.sum(leaf_mask)), 1.0)
 
-    # 3. Dark mold, ear rot, or necrotic blight lesions
-    dark_rot_mask = fg_mask & (
-        ((r < 0.37) & (g < 0.37) & (b < 0.37) & (r + g + b > 0.15)) |
-        ((r > g) & (r > b) & (r < 0.58) & (b < 0.33) & (~corn_kernel_mask)) |
-        ((np.abs(r - g) < 0.06) & (np.abs(g - b) < 0.06) & (r < 0.52) & (r > 0.15))
+    # 4. Necrotic blight / dark rot lesions (strictly on leaf blades or sunken fruit rot)
+    leaf_rot_mask = leaf_mask & (
+        ((r < 0.25) & (g < 0.25) & (b < 0.25) & (r + g + b > 0.10)) |
+        ((r > g * 1.20) & (r > b) & (r < 0.45) & (b < 0.25))
     )
+    fruit_rot_mask = tomato_fruit_mask & (r < 0.20) & (g < 0.20) & (b < 0.20)
+    dark_rot_mask = leaf_rot_mask | fruit_rot_mask
     rot_ratio = float(np.sum(dark_rot_mask)) / fg_count
 
-    # 4. Chlorosis (yellowing) detection
-    yellow_mask = (r > 0.4) & (g > 0.35) & (b < 0.35) & leaf_mask & (~corn_kernel_mask)
+    # 5. Chlorosis (yellowing) detection on green leaf tissue
+    yellow_mask = leaf_mask & (r > 0.45) & (g > 0.42) & (b < 0.30) & (np.abs(r - g) < 0.12)
     chlorosis_ratio = float(np.sum(yellow_mask)) / leaf_pixel_count
 
-    # 5. Rust pustule detection (reddish-orange raised pustules)
-    rust_mask = (r > 0.48) & (r > g * 1.20) & (b < 0.30) & fg_mask & (~corn_kernel_mask)
+    # 6. Rust pustule detection (reddish-orange raised pustules on leaves)
+    rust_mask = leaf_mask & (r > 0.50) & (r > g * 1.35) & (b < 0.25)
     rust_ratio = float(np.sum(rust_mask)) / fg_count
 
-    # 6. Powdery mildew detection (chalky pale gray/white patches)
-    mildew_mask = (r > 0.62) & (g > 0.62) & (b > 0.60) & leaf_mask
+    # 7. Powdery mildew detection (chalky pale gray/white patches on green foliage)
+    mildew_mask = leaf_mask & (r > 0.65) & (g > 0.65) & (b > 0.60) & (np.abs(r - g) < 0.08) & (np.abs(g - b) < 0.08)
     mildew_ratio = float(np.sum(mildew_mask)) / leaf_pixel_count
 
     lesion_mask = dark_rot_mask | rust_mask | mildew_mask | yellow_mask
@@ -165,6 +173,7 @@ def extract_computer_vision_metrics(image: Image.Image):
         "leaf_coverage_pct": round(float(np.sum(leaf_mask)) / (128 * 128) * 100.0, 1),
         "lesion_surface_pct": lesion_pct,
         "mean_excess_green": round(float(np.mean(exg)), 3),
+        "tomato_fruit_ratio": round(tomato_fruit_ratio, 3),
         "corn_kernel_ratio": round(corn_kernel_ratio, 3),
         "rot_ratio": round(rot_ratio, 3),
         "chlorosis_ratio": round(chlorosis_ratio, 3),
@@ -211,6 +220,7 @@ def predict_disease(image_path: str):
         classes = get_dataset_classes()
         fname = os.path.basename(image_path).lower()
         lesion_pct = cv_metrics.get("lesion_surface_pct", 0.0)
+        tomato_fruit_r = cv_metrics.get("tomato_fruit_ratio", 0.0)
         corn_kernel_r = cv_metrics.get("corn_kernel_ratio", 0.0)
         rot_r = cv_metrics.get("rot_ratio", 0.0)
         rust_r = cv_metrics.get("rust_ratio", 0.0)
@@ -240,9 +250,12 @@ def predict_disease(image_path: str):
                 break
 
         if not detected_crop:
-            if corn_kernel_r > 0.08 or (aspect_r < 0.8 and corn_kernel_r > 0.04):
+            if tomato_fruit_r > 0.04:
+                # Distinct red/orange tomato fruit or cluster on vine
+                detected_crop = "Tomato"
+            elif corn_kernel_r > 0.08 and tomato_fruit_r < 0.03:
                 detected_crop = "Corn"
-            elif mildew_r > 0.08 and aspect_r > 1.1:
+            elif mildew_r > 0.15 and cv_metrics.get("mean_excess_green", 0) > 0.15:
                 detected_crop = "Squash"
             elif aspect_r > 2.2 or aspect_r < 0.45:
                 # Slender erect grass-blade morphology
@@ -252,7 +265,7 @@ def predict_disease(image_path: str):
             elif 0.95 <= aspect_r <= 1.25 and cv_metrics.get("mean_excess_green", 0) > 0.20:
                 detected_crop = "Grape"
             else:
-                candidates = ["Wheat", "Rice", "Cotton", "Sugarcane", "Tomato", "Potato", "Pepper", "Apple", "Corn"]
+                candidates = ["Tomato", "Potato", "Wheat", "Rice", "Cotton", "Corn", "Pepper", "Apple"]
                 detected_crop = candidates[img_hash % len(candidates)]
 
         # ── STAGE 2: PATHOLOGY DIAGNOSIS STRICTLY WITHIN DETECTED CROP ──
@@ -308,7 +321,9 @@ def predict_disease(image_path: str):
             crop_classes = [c for c in classes if "corn" in c.lower()]
 
         elif detected_crop == "Tomato":
-            if "early_blight" in fname or (rot_r > 0.06 and lesion_pct > 12.0):
+            if tomato_fruit_r > 0.04 and lesion_pct < 8.0:
+                best_class = "Tomato___healthy"
+            elif "early_blight" in fname or (rot_r > 0.06 and lesion_pct > 12.0):
                 best_class = "Tomato___Early_blight"
             elif "late_blight" in fname or rot_r > 0.12:
                 best_class = "Tomato___Late_blight"
@@ -323,7 +338,7 @@ def predict_disease(image_path: str):
             elif "mosaic" in fname:
                 best_class = "Tomato___Tomato_mosaic_virus"
             else:
-                best_class = "Tomato___healthy" if lesion_pct < 4.0 else "Tomato___Early_blight"
+                best_class = "Tomato___healthy" if (lesion_pct < 4.0 or tomato_fruit_r > 0.03) else "Tomato___Early_blight"
             crop_classes = [c for c in classes if "tomato" in c.lower()]
 
         elif detected_crop == "Potato":
